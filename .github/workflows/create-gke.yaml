@@ -1,21 +1,21 @@
 name: Create GKE + Flux
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
 
-env:
-  GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-  GOOGLE_REGION:  ${{ secrets.GCP_REGION }}
-  GOOGLE_ZONE:    ${{ secrets.GCP_ZONE }}
-  CLUSTER_NAME:   gke-flux
-  GH_TOKEN:       ${{ secrets.GH_TOKEN }
-
 jobs:
   create:
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+      GOOGLE_REGION:  ${{ secrets.GCP_REGION }}
+      GOOGLE_ZONE:    ${{ secrets.GCP_ZONE }}
+      CLUSTER_NAME:   gke-flux
+      GH_TOKEN:       ${{ secrets.GH_TOKEN }}
+
     steps:
       - name: Checkout IaC repo
         uses: actions/checkout@v4
@@ -45,11 +45,17 @@ jobs:
           terraform apply -auto-approve
 
       - name: Flux bootstrap (GitHub)
-        if: ${{ env.GH_TOKEN != '' }}
         env:
-          GITHUB_TOKEN: ${{ env.GH_TOKEN }}
+          GITHUB_TOKEN:  ${{ env.GH_TOKEN }}
+          GOOGLE_PROJECT: ${{ env.GOOGLE_PROJECT }}
+          GOOGLE_REGION:  ${{ env.GOOGLE_REGION }}
+          CLUSTER_NAME:   ${{ env.CLUSTER_NAME }}
         run: |
-          gcloud container clusters get-credentials "${{ env.CLUSTER_NAME }}" --region "${{ env.GOOGLE_REGION }}" --project "${{ env.GOOGLE_PROJECT }}"
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GH_TOKEN порожній — скіпаю Flux bootstrap."
+            exit 0
+          fi
+          gcloud container clusters get-credentials "${CLUSTER_NAME}" --region "${GOOGLE_REGION}" --project "${GOOGLE_PROJECT}"
           curl -s https://fluxcd.io/install.sh | sudo bash
           flux check --pre
           flux bootstrap github --owner=mexxo-dvp --repository=gitops --branch=main --path=clusters/gke --personal
