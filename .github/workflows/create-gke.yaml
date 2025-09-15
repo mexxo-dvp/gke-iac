@@ -1,23 +1,14 @@
 name: Create GKE + Flux
 
 on:
-  workflow_dispatch: {}
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
   create:
     runs-on: ubuntu-latest
-    env:
-      GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-      GOOGLE_REGION:  ${{ secrets.GCP_REGION }}
-      GOOGLE_ZONE:    ${{ secrets.GCP_ZONE }}
-      CLUSTER_NAME:   gke-flux
-      GH_TOKEN:       ${{ secrets.GH_TOKEN }}
 
     steps:
-      - name: Checkout IaC repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Auth to Google Cloud
@@ -32,7 +23,15 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.8.5
+          terraform_version: "1.8.5"
+
+      - name: Export env to GITHUB_ENV
+        run: |
+          echo "GOOGLE_PROJECT=${{ secrets.GCP_PROJECT_ID }}" >> "$GITHUB_ENV"
+          echo "GOOGLE_REGION=${{ secrets.GCP_REGION }}"       >> "$GITHUB_ENV"
+          echo "GOOGLE_ZONE=${{ secrets.GCP_ZONE }}"           >> "$GITHUB_ENV"
+          echo "CLUSTER_NAME=gke-flux"                         >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.GH_TOKEN }}"              >> "$GITHUB_ENV"
 
       - name: Terraform Init & Apply
         env:
@@ -51,8 +50,8 @@ jobs:
           GOOGLE_REGION:  ${{ env.GOOGLE_REGION }}
           CLUSTER_NAME:   ${{ env.CLUSTER_NAME }}
         run: |
-          if [ -z "$GITHUB_TOKEN" ]; then
-            echo "GH_TOKEN порожній — скіпаю Flux bootstrap."
+          if [ -z "${GITHUB_TOKEN}" ]; then
+            echo "GH_TOKEN is empty — skipping Flux bootstrap"
             exit 0
           fi
           gcloud container clusters get-credentials "${CLUSTER_NAME}" --region "${GOOGLE_REGION}" --project "${GOOGLE_PROJECT}"
