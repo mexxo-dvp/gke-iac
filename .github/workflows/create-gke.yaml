@@ -1,6 +1,7 @@
 name: Create GKE + Flux
+
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -10,21 +11,23 @@ env:
   GOOGLE_REGION:  ${{ secrets.GCP_REGION }}
   GOOGLE_ZONE:    ${{ secrets.GCP_ZONE }}
   CLUSTER_NAME:   gke-flux
-  GH_TOKEN:       ${{ secrets.GH_TOKEN }}
+  GH_TOKEN:       ${{ secrets.GH_TOKEN }
 
 jobs:
   create:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout IaC repo
+        uses: actions/checkout@v4
 
-      - name: Auth to GCP
+      - name: Auth to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           export_environment_variables: true
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -42,9 +45,9 @@ jobs:
           terraform apply -auto-approve
 
       - name: Flux bootstrap (GitHub)
-        if: ${{ env.GH_TOKEN != '' }}         # ← Read from env
+        if: ${{ env.GH_TOKEN != '' }}
         env:
-          GITHUB_TOKEN: ${{ env.GH_TOKEN }}   # ← add token
+          GITHUB_TOKEN: ${{ env.GH_TOKEN }}
         run: |
           gcloud container clusters get-credentials "${{ env.CLUSTER_NAME }}" --region "${{ env.GOOGLE_REGION }}" --project "${{ env.GOOGLE_PROJECT }}"
           curl -s https://fluxcd.io/install.sh | sudo bash
